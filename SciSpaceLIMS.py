@@ -308,7 +308,7 @@ def standard_operating_procedures():
                 pdf_base64 = base64.b64encode(pdf_bytes).decode("utf-8")
 
                 # Embedding PDF in HTML
-                pdf_display = f'<embed src="data:application/pdf;base64,{pdf_base64}" width="600" height="900" type="application/pdf">'
+                pdf_display = f'<iframe src="data:application/pdf;base64,{pdf_base64}" width="600" height="900" type="application/pdf">'
 
                 # Displaying File
                 st.markdown(pdf_display, unsafe_allow_html=True)

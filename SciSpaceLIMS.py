@@ -1,5 +1,4 @@
 import streamlit as st
-from streamlit_quill import st_quill
 
 import pandas as pd
 from uuid import uuid4

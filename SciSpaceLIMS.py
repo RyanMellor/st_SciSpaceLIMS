@@ -1,22 +1,27 @@
 import streamlit as st
 
 import pandas as pd
+from datetime import datetime
+import base64
+from io import BytesIO
+from collections import defaultdict
 from uuid import uuid4
 import gspread
 from gspread_dataframe import get_as_dataframe, set_with_dataframe
-from datetime import datetime
+import json
+
 from reportlab.pdfgen import canvas
 from reportlab.lib import colors
-from reportlab.lib.styles import ParagraphStyle, ListStyle
+from reportlab.lib.styles import ParagraphStyle, ListStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Image, PageTemplate, Frame, Table, TableStyle, ListFlowable, ListItem
+from reportlab.platypus.flowables import HRFlowable, Spacer
 from reportlab.lib.enums import TA_JUSTIFY, TA_LEFT, TA_CENTER, TA_RIGHT
-import base64
-import io
-from io import BytesIO
-from collections import defaultdict
 
+from pydantic import BaseModel, Field, validator
+from typing import List, Dict
 
+pdf_styles = getSampleStyleSheet()
 
 def quality_management_system():
     st.header('Quality Management System')
@@ -105,58 +110,47 @@ def manage_inventory(inventory_type):
     search_df = df[df.astype(str).apply(lambda x: x.str.contains(search_term, case=False).any(), axis=1)]
     st.dataframe(search_df)
 
-    add, remove, update = st.tabs(['Add', 'Remove', 'Update'])
-    with add:
-        new_item = pd.DataFrame().from_dict(
-            {field['column_name']: None for field in database_structures[inventory_type][1:]}, orient='index').T
-        new_item = st.experimental_data_editor(new_item)
-        if st.button('Add Item', key=f'{inventory_type}_add'):
-            new_item = new_item.to_dict('records')[0]
-            new_item['id'] = f'{abvs[inventory_type]}-{str(uuid4())[:6]}'
+    # add, remove, update = st.tabs(['Add', 'Remove', 'Update'])
+    # with add:
+    #     new_item = pd.DataFrame().from_dict(
+    #         {field['column_name']: None for field in database_structures[inventory_type][1:]}, orient='index').T
+    #     new_item = st.experimental_data_editor(new_item)
+    #     if st.button('Add Item', key=f'{inventory_type}_add'):
+    #         new_item = new_item.to_dict('records')[0]
+    #         new_item['id'] = f'{abvs[inventory_type]}-{str(uuid4())[:6]}'
 
-            # Append new SOP to the dataframe
-            df = df.append(new_item, ignore_index=True)
+    #         # Append new SOP to the dataframe
+    #         df = df.append(new_item, ignore_index=True)
 
-            # Save updated dataframe to Google Sheets
-            set_with_dataframe(worksheet, df)
+    #         # Save updated dataframe to Google Sheets
+    #         set_with_dataframe(worksheet, df)
 
-            # Display success message
-            new_item_name = new_item['name']
-            st.success(f'Successfully added {new_item_name} to {inventory_type}.')
+    #         # Display success message
+    #         new_item_name = new_item['name']
+    #         st.success(f'Successfully added {new_item_name} to {inventory_type}.')
 
-    with remove:
-        remove_id = st.text_input(f'Item ID', key=f'{inventory_type}_remove_id')
-        if remove_id:
-            st.dataframe(df[df['id'] == remove_id])
-            if st.button('Remove Selected Item', key=f'{inventory_type}_remove'):
-                df = df[df['id'] != remove_id]
-                worksheet.clear()
-                worksheet.update([df.columns.values.tolist()] + df.values.tolist())
-                # set_with_dataframe(worksheet, df)
-                st.success(f'Successfully removed {remove_id} from {inventory_type}.')
+    # with remove:
+    #     remove_id = st.text_input(f'Item ID', key=f'{inventory_type}_remove_id')
+    #     if remove_id:
+    #         st.dataframe(df[df['id'] == remove_id])
+    #         if st.button('Remove Selected Item', key=f'{inventory_type}_remove'):
+    #             df = df[df['id'] != remove_id]
+    #             worksheet.clear()
+    #             worksheet.update([df.columns.values.tolist()] + df.values.tolist())
+    #             # set_with_dataframe(worksheet, df)
+    #             st.success(f'Successfully removed {remove_id} from {inventory_type}.')
         
-    with update:
-        update_id = st.text_input(f'Item ID', key=f'{inventory_type}_update_id')
-        if update_id:
-            update_item = df[df['id'] == update_id]
-            update_item = st.experimental_data_editor(update_item, key=f'{inventory_type}_update_item')
-            if st.button('Update Selected Item', key=f'{inventory_type}_update'):
-                update_item = update_item.to_dict('records')[0]
-                df = df[df['id'] != update_id]
-                df = df.append(update_item, ignore_index=True)
-                set_with_dataframe(worksheet, df)
-                st.success(f'Successfully updated {update_id} in {inventory_type}.')
-
     # with update:
     #     update_id = st.text_input(f'Item ID', key=f'{inventory_type}_update_id')
     #     if update_id:
-    #         query = firestore_client.collection(inventory_type).where('id', '==', update_id).get()
-    #         query_df = pd.DataFrame([doc.to_dict() for doc in query], columns=database_structures[inventory_type][1:])
-    #         update_item = st.experimental_data_editor(query_df, key=f'{inventory_type}_update_editor')
-    #         if st.button('Update Selected Items', key=f'{inventory_type}_update'):
+    #         update_item = df[df['id'] == update_id]
+    #         update_item = st.experimental_data_editor(update_item, key=f'{inventory_type}_update_item')
+    #         if st.button('Update Selected Item', key=f'{inventory_type}_update'):
     #             update_item = update_item.to_dict('records')[0]
-    #             for doc in query:
-    #                 doc.reference.update(update_item)
+    #             df = df[df['id'] != update_id]
+    #             df = df.append(update_item, ignore_index=True)
+    #             set_with_dataframe(worksheet, df)
+    #             st.success(f'Successfully updated {update_id} in {inventory_type}.')
 
 
 def data_management():
@@ -165,6 +159,7 @@ def data_management():
     Data Management is the process of collecting, storing, and retrieving data in a way that is secure, reliable, and easy to use.
     """)
     st.write("Coming soon")
+
 
 def standard_operating_procedures():
     st.header('Standard Operating Procedures (SOPs)')
@@ -204,7 +199,7 @@ def standard_operating_procedures():
     worksheet = sh.worksheet('sops')
 
     # Fetch existing data
-    df = get_as_dataframe(worksheet, evaluate_formulas=True)
+    df = pd.DataFrame(worksheet.get_all_records())
     df.dropna(how='all', inplace=True)
     df = df[[col for col in df.columns if 'Unnamed' not in col]]
 
@@ -212,20 +207,12 @@ def standard_operating_procedures():
     filter_term = st.text_input(f'Search', key=f'sop_search')
 
     filter_category = st.multiselect('Filter by Category', sop_categories.keys(), default=list(sop_categories.keys()))
-    
-    # filter_tag = st.multiselect('Filter by Tag',
-    #                             sop_tags.values())
-    # filter_tag_cols = [col for col in sop_tags.keys() if sop_tags[col] in filter_tag]
-
 
     # Apply filters
     df_filter = df.copy()
 
     # Find rows which contain the filter term in any column
     df_filter = df_filter[df_filter.astype(str).sum(axis=1).str.contains(filter_term, case=False)]
-
-    # Find rows where all of the filter_tag_cols are True
-    # df_filter = df_filter[df_filter[filter_tag_cols].all(axis=1)]
 
     # Find rows where the category is in the filter_category list
     df_filter = df_filter[df_filter['category'].isin(filter_category)]
@@ -240,36 +227,82 @@ def standard_operating_procedures():
             query_df = df[df['id'] == view_id]
             if not query_df.empty:
                 query_df_t = query_df.T
-                query_df_t.columns = ['Value']
+                query_df_t.columns = ['value']
+
+                query_dict = query_df_t.to_dict()['value']
+                for k, v in query_dict.items():
+                    try:
+                        query_dict[k] = json.loads(v)
+                    except:
+                        pass
 
                 # Create a PDF
                 buffer = BytesIO()
                 doc = SimpleDocTemplate(buffer)
-
+                
                 # Create a list of elements to add to the PDF
-                elements = [
-                    Paragraph(f'{query_df["id"].values[0]}', pdf_text_style),
-                    Paragraph(f'{query_df["title"].values[0]}', pdf_title_style),
-                    Paragraph(f'Effective Date: {query_df["effective_date"].values[0]}', pdf_text_style),
-                    Paragraph(f'Purpose', pdf_section_style),
-                    Paragraph(f'{query_df["purpose"].values[0]}', pdf_text_style),
-                    Paragraph(f'Scope', pdf_section_style),
-                    Paragraph(f'{query_df["scope"].values[0]}', pdf_text_style),
-                    Paragraph(f'Responsibilities', pdf_section_style),
-                    Paragraph(f'{query_df["responsibilities"].values[0]}', pdf_text_style),
-                    Paragraph(f'Procedure', pdf_section_style),
-                    Paragraph(f'{query_df["procedure"].values[0]}', pdf_text_style),
-                    Paragraph(f'Related Documents', pdf_section_style),
-                    Paragraph(f'{query_df["related_documents"].values[0]}', pdf_text_style),
-                    Paragraph(f'Revision History', pdf_section_style),
-                    Paragraph(f'{query_df["revision_history"].values[0]}', pdf_text_style),
-                ]
-                # for col in query_df.columns:
-                #     elements.append(Paragraph(col, pdf_section_style))
-                #     elements.append(Paragraph(str(query_df[col].values[0]), pdf_text_style))
+                elements = []
+                hr = [Spacer(1, 10), HRFlowable(width="100%")]
+               
+                # ID and Title
+                elements.append(Paragraph(query_dict['id'], pdf_styles['Normal']))
+                elements.append(Paragraph(query_dict["title"], pdf_styles['Heading1']))
+                elements += hr
+                
+                # Purpose
+                elements.append(Paragraph("Purpose", pdf_styles['Heading2']))
+                elements.append(Paragraph(query_dict["purpose"], pdf_styles['Normal']))
+                elements += hr
+                
+                # Scope
+                elements.append(Paragraph("Scope", pdf_styles['Heading2']))
+                elements.append(Paragraph("Covered", pdf_styles['Heading3']))
+                for x in query_dict["scope_covered"]:
+                    elements.append(Paragraph(f"• {x}", pdf_styles['Normal']))
+                elements.append(Paragraph("Not covered", pdf_styles['Heading3']))
+                for x in query_dict["scope_not_covered"]:
+                    elements.append(Paragraph(f"• {x}", pdf_styles['Normal']))
+                elements += hr
+                
+                # Applications
+                elements.append(Paragraph("Applications", pdf_styles['Heading2']))
+                elements.append(Paragraph(query_dict["applications"], pdf_styles['Normal']))
+                elements += hr
+                
+                # Definitions
+                elements.append(Paragraph("Definitions", pdf_styles['Heading2']))
+                for k, v in query_dict["definitions"].items():
+                    elements.append(Paragraph(f"<b>{k}:</b> {v}", pdf_styles['Normal']))
+                elements += hr
+                
+                # Responsibilities
+                elements.append(Paragraph("Responsibilities", pdf_styles['Heading2']))
+                for k, v in query_dict["responsibilities"].items():
+                    elements.append(Paragraph(f"<b>{k}:</b> {v}", pdf_styles['Normal']))
+                elements += hr
+               
+                # Procedure
+                elements.append(Paragraph("Procedure", pdf_styles['Heading2']))
+                for k, v in query_dict["procedure"].items():
+                    elements.append(Paragraph(k, pdf_styles['Heading3']))
+                    for x in v:
+                        elements.append(Paragraph(f"• {x}", pdf_styles['Normal']))
+                elements += hr
+                
+                # Health and Safety
+                elements.append(Paragraph("Health and Safety", pdf_styles['Heading2']))
+                elements.append(Paragraph("PPE", pdf_styles['Heading3']))
+                for k, v in query_dict["ppe"].items():
+                    elements.append(Paragraph(f"<b>{k}:</b> {v}", pdf_styles['Normal']))
+                elements.append(Paragraph("Hazards and mitigation", pdf_styles['Heading3']))
+                for k, v in query_dict["hazards_and_mitigation"].items():
+                    elements.append(Paragraph(f"<b>{k}:</b> {v}", pdf_styles['Normal']))
+                elements.append(Paragraph("Emergency procedures", pdf_styles['Heading3']))
+                for k, v in query_dict["emergency_procedures"].items():
+                    elements.append(Paragraph(f"<b>{k}:</b> {v}", pdf_styles['Normal']))
+                elements += hr
 
                 # Build the PDF document
-                # doc.build(elements, onFirstPage=addPageNumber, onLaterPages=addPageNumber)
                 doc.build(elements, canvasmaker=NumberedCanvas)
                 pdf_bytes = buffer.getbuffer().tobytes()
                 pdf_base64 = base64.b64encode(pdf_bytes).decode("utf-8")
@@ -280,96 +313,96 @@ def standard_operating_procedures():
                 # Displaying File
                 st.markdown(pdf_display, unsafe_allow_html=True)
 
-    with create:
+    # with create:
 
-        sop_dict = {
-            'id': '',
-            'category': '',
-            'category_code': '',
-            'number': '',
-            'version': '',
-            'effective_date': '',
-            'title': '',
-            'purpose': '',
-            'scope': '',
-            'responsibilities': '',
-            'procedure': '',
-            'related_documents': '',
-            'revision_history': '',
-        }
+    #     sop_dict = {
+    #         'id': '',
+    #         'category': '',
+    #         'category_code': '',
+    #         'number': '',
+    #         'version': '',
+    #         'effective_date': '',
+    #         'title': '',
+    #         'purpose': '',
+    #         'scope': '',
+    #         'responsibilities': '',
+    #         'procedure': '',
+    #         'related_documents': '',
+    #         'revision_history': '',
+    #     }
 
-        valid_id = True
+    #     valid_id = True
         
-        # User input for new SOP ID
-        sop_category = st.selectbox('SOP Category', list(sop_categories.keys()))
-        sop_category_code = sop_categories[sop_category]
-        sop_number = st.number_input('SOP Number', min_value=1, max_value=9999, value=1, format='%04d')
-        sop_version = st.number_input('SOP Version', min_value=1, max_value=99, value=1, format='%02d')
+    #     # User input for new SOP ID
+    #     sop_category = st.selectbox('SOP Category', list(sop_categories.keys()))
+    #     sop_category_code = sop_categories[sop_category]
+    #     sop_number = st.number_input('SOP Number', min_value=1, max_value=9999, value=1, format='%04d')
+    #     sop_version = st.number_input('SOP Version', min_value=1, max_value=99, value=1, format='%02d')
 
-        # Generate SOP ID
-        sop_id_without_version = f'{sop_category_code}-{sop_number:04d}'
-        sop_id = f'{sop_category_code}-{sop_number:04d}-v{sop_version:02d}'
+    #     # Generate SOP ID
+    #     sop_id_without_version = f'{sop_category_code}-{sop_number:04d}'
+    #     sop_id = f'{sop_category_code}-{sop_number:04d}-v{sop_version:02d}'
 
-        sop_category_next = int(df[df['category'] == sop_category]['number'].max() + 1)
+    #     sop_category_next = int(df[df['category'] == sop_category]['number'].max() + 1)
 
-        sop_id_versions = df[df['id'].str.contains(sop_id_without_version)]
-        if not sop_id_versions.empty:
-            sop_id_latest_version_number = int(sop_id_versions['version'].max())
-            sop_id_latest_version = sop_id_versions[sop_id_versions['version'] == sop_id_latest_version_number]
-            sop_dict = sop_id_latest_version.to_dict('records')[0]
-            sop_id_title = sop_id_versions['title'].values[0]
+    #     sop_id_versions = df[df['id'].str.contains(sop_id_without_version)]
+    #     if not sop_id_versions.empty:
+    #         sop_id_latest_version_number = int(sop_id_versions['version'].max())
+    #         sop_id_latest_version = sop_id_versions[sop_id_versions['version'] == sop_id_latest_version_number]
+    #         sop_dict = sop_id_latest_version.to_dict('records')[0]
+    #         sop_id_title = sop_id_versions['title'].values[0]
 
-        # Check if SOP ID and version number already exists
-        if sop_id in df['id'].values:
-            st.error(f'''
-            {sop_id} already exists  
+    #     # Check if SOP ID and version number already exists
+    #     if sop_id in df['id'].values:
+    #         st.error(f'''
+    #         {sop_id} already exists  
 
-            {sop_id_without_version} refers to {sop_id_title}, the latest version is {sop_id_latest_version_number:02d}  
+    #         {sop_id_without_version} refers to {sop_id_title}, the latest version is {sop_id_latest_version_number:02d}  
 
-            The next available SOP number in the {sop_category} category is {sop_category_next:04d}
-            ''')
-            valid_id = False
+    #         The next available SOP number in the {sop_category} category is {sop_category_next:04d}
+    #         ''')
+    #         valid_id = False
 
-        # if not sop_version == sop_id_latest_version_number + 1:
-        #     st.error(f'''
-        #     {sop_id_without_version} refers to {sop_id_title}, the latest version is {sop_id_latest_version_number:02d}
-        #     ''')
-        #     valid_id = False
+    #     # if not sop_version == sop_id_latest_version_number + 1:
+    #     #     st.error(f'''
+    #     #     {sop_id_without_version} refers to {sop_id_title}, the latest version is {sop_id_latest_version_number:02d}
+    #     #     ''')
+    #     #     valid_id = False
 
-        # if not sop_number == sop_category_next:
-        #     st.error(f'''
-        #     The next available SOP number in the {sop_category} category is {sop_category_next:04d}
-        #     ''')
+    #     # if not sop_number == sop_category_next:
+    #     #     st.error(f'''
+    #     #     The next available SOP number in the {sop_category} category is {sop_category_next:04d}
+    #     #     ''')
         
-        if not valid_id:
-            return None
+    #     if not valid_id:
+    #         return None
             
-        st.info(f'New SOP ID: {sop_id}')
+    #     st.info(f'New SOP ID: {sop_id}')
 
-        sop_dict['id'] = sop_id
-        sop_dict['category'] = sop_category
-        sop_dict['category_code'] = sop_category_code
-        sop_dict['number'] = sop_number
-        sop_dict['version'] = sop_version
+    #     sop_dict['id'] = sop_id
+    #     sop_dict['category'] = sop_category
+    #     sop_dict['category_code'] = sop_category_code
+    #     sop_dict['number'] = sop_number
+    #     sop_dict['version'] = sop_version
 
-        sop_dict['effective_date'] = st.date_input('Effective Date', value=datetime.now(), help='The date that this SOP will go into effect')
-        sop_dict['title'] = st.text_input('Title', value=sop_dict['title'], help='The title of this SOP, should be descriptive and concise')
-        sop_dict['purpose'] = st.text_area('Purpose', value=sop_dict['purpose'], help='The purpose of this SOP, including why it is needed and what it is used for')
-        sop_dict['scope'] = st.text_area('Scope', value=sop_dict['scope'], help='The scope of this SOP, including what is covered and what is not covered')
-        sop_dict['responsibilities'] = st.text_area('Responsibilities', value=sop_dict['responsibilities'], help='The responsibilities of each role in this SOP')
-        sop_dict['procedure'] = st.text_area('Procedures', value=sop_dict['procedure'], help='The procedures for this SOP, including step-by-step instructions, safety precautions, and quality control measures')
-        sop_dict['related_documents'] = st.text_area('Related Documents', value=sop_dict['related_documents'], help='Any related documents that are referenced in this SOP')
-        sop_dict['revision_history'] = st.text_area('Revision History', value=sop_dict['revision_history'], help='The revision history for this SOP, including the date, version number, person responsible, and description of changes')
+    #     sop_dict['effective_date'] = st.date_input('Effective Date', value=datetime.now(), help='The date that this SOP will go into effect')
+    #     sop_dict['title'] = st.text_input('Title', value=sop_dict['title'], help='The title of this SOP, should be descriptive and concise')
+    #     sop_dict['purpose'] = st.text_area('Purpose', value=sop_dict['purpose'], help='The purpose of this SOP, including why it is needed and what it is used for')
+    #     sop_dict['scope'] = st.text_area('Scope', value=sop_dict['scope'], help='The scope of this SOP, including what is covered and what is not covered')
+    #     sop_dict['responsibilities'] = st.text_area('Responsibilities', value=sop_dict['responsibilities'], help='The responsibilities of each role in this SOP')
+    #     sop_dict['procedure'] = st.text_area('Procedures', value=sop_dict['procedure'], help='The procedures for this SOP, including step-by-step instructions, safety precautions, and quality control measures')
+    #     sop_dict['related_documents'] = st.text_area('Related Documents', value=sop_dict['related_documents'], help='Any related documents that are referenced in this SOP')
+    #     sop_dict['revision_history'] = st.text_area('Revision History', value=sop_dict['revision_history'], help='The revision history for this SOP, including the date, version number, person responsible, and description of changes')
 
-        if st.button('Save SOP'):
-            # Append new SOP to the dataframe
-            df = df.append(sop_dict, ignore_index=True)
+    #     if st.button('Save SOP'):
+    #         # Append new SOP to the dataframe
+    #         df = df.append(sop_dict, ignore_index=True)
 
-            # Save updated dataframe to Google Sheets
-            set_with_dataframe(worksheet, df)
+    #         # Save updated dataframe to Google Sheets
+    #         set_with_dataframe(worksheet, df)
 
-            # Display success message
-            st.success(f'Successfully added SOP: {sop_id}')
+    #         # Display success message
+    #         st.success(f'Successfully added SOP: {sop_id}')
 
 
 def electronic_lab_notebook():
@@ -938,9 +971,9 @@ def df2table(df):
 PAGES = {
     # 'ELN Integration': electronic_lab_notebook,
     # 'Data Management': data_management,
-    'Inventory Management': inventory_management,
-    'Standard Operating Procedures': standard_operating_procedures,
     'Quality Management System': quality_management_system,
+    'Standard Operating Procedures': standard_operating_procedures,
+    'Inventory Management': inventory_management,
     # 'Integration and Interoperability': integration_interoperability,
     # 'Reporting and Analytics': reporting_analytics,
     # 'Regulatory Compliance': regulatory_compliance,

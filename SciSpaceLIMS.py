@@ -18,8 +18,8 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Image, PageTemplate
 from reportlab.platypus.flowables import HRFlowable, Spacer
 from reportlab.lib.enums import TA_JUSTIFY, TA_LEFT, TA_CENTER, TA_RIGHT
 
-from pydantic import BaseModel, Field, validator
-from typing import List, Dict
+# from pydantic import BaseModel, Field, validator
+# from typing import List, Dict
 
 pdf_styles = getSampleStyleSheet()
 

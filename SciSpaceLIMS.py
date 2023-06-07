@@ -302,16 +302,79 @@ def standard_operating_procedures():
                     elements.append(Paragraph(f"<b>{k}:</b> {v}", pdf_styles['Normal']))
                 elements += hr
 
+                # Related Documents
+                elements.append(Paragraph("Related Documents", pdf_styles['Heading2']))
+                for k, v in query_dict["related_documents"].items():
+                    elements.append(Paragraph(f"<b>{k}:</b> {v}", pdf_styles['Normal']))
+                elements += hr
+
+                # Revision History
+                elements.append(Paragraph("Revision History", pdf_styles['Heading2']))
+                revision_history = pd.DataFrame(query_dict["revision_history"])
+                revision_history.columns = [" ".join(i.split("_")).capitalize() for i in revision_history.columns]
+                elements.append(df2table(revision_history))
+                elements += hr
+
                 # Build the PDF document
                 doc.build(elements, canvasmaker=NumberedCanvas)
                 pdf_bytes = buffer.getbuffer().tobytes()
                 pdf_base64 = base64.b64encode(pdf_bytes).decode("utf-8")
 
                 # Embedding PDF in HTML
-                pdf_display = f'<iframe src="data:application/pdf;base64,{pdf_base64}" width="600" height="900" type="application/pdf">'
+                pdf_display = f'<iframe src="data:application/pdf;base64,{pdf_base64}" width="600" height="900" type="application/pdf"></iframe>'
 
                 # Displaying File
                 st.markdown(pdf_display, unsafe_allow_html=True)
+
+                
+                md_title=f"# {query_dict['title']}"
+                md_purpose=query_dict['purpose']
+                md_scope_covered="\n".join(
+                    [f"- {x}" for x in query_dict['scope_covered']])
+                md_scope_not_covered="\n".join(
+                    [f"- {x}" for x in query_dict['scope_not_covered']])
+                md_applications=query_dict['applications']
+                md_definitions="\n".join(
+                    [f"- **{k}**: {v}" for k, v in query_dict['definitions'].items()])
+                md_responsibilities="\n".join(
+                    [f"- **{k}**: {v}" for k, v in query_dict['responsibilities'].items()])
+                md_procedure=""
+                for k, v in query_dict['procedure'].items():
+                    md_procedure += f"\n### {k}\n"
+                    for i, x in enumerate(v):
+                        md_procedure += f"- {x}\n"
+                md_ppe="\n".join(
+                    [f"- **{k}**: {v}" for k, v in query_dict['ppe'].items()])
+                md_hazards_and_mitigation="\n".join(
+                    [f"- **{k}**: {v}" for k, v in query_dict['hazards_and_mitigation'].items()])
+                md_emergency_procedures="\n".join(
+                    [f"- **{k}**: {v}" for k, v in query_dict['emergency_procedures'].items()])
+
+                st.markdown(f"""
+{md_title}
+## Purpose
+{md_purpose}
+## Scope
+### Covered
+{md_scope_covered}
+### Not covered
+{md_scope_not_covered}
+## Applications
+{md_applications}
+## Definitions
+{md_definitions}
+## Responsibilities
+{md_responsibilities}
+## Procedure
+{md_procedure}
+## Health and Safety
+### PPE
+{md_ppe}
+### Hazards and mitigation
+{md_hazards_and_mitigation}
+### Emergency procedures
+{md_emergency_procedures}
+""", unsafe_allow_html=True)
 
     # with create:
 
@@ -958,6 +1021,7 @@ def addPageNumber(canvas, doc):
     canvas.drawRightString(200*mm, 20*mm, text)
     # canvas.drawCentredString(100*mm, 20*mm, "Document controlled only when viewed on the SciSpaceLIMS")
     
+
 def df2table(df):
     return Table([[Paragraph(col) for col in df.columns]] + df.values.tolist(),
       style=[
@@ -967,12 +1031,20 @@ def df2table(df):
         ('ROWBACKGROUNDS', (0,0), (-1,-1), [colors.lightgrey, colors.white])],
       hAlign = 'LEFT')
 
+def dict2table(d):
+    return Table([[Paragraph(k), Paragraph(v)] for k, v in d.items()],
+      style=[
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('LINEBELOW',(0,0), (-1,0), 1, colors.black),
+        ('BOX', (0,0), (-1,-1), 1, colors.black),
+        ('ROWBACKGROUNDS', (0,0), (-1,-1), [colors.lightgrey, colors.white])],
+      hAlign = 'LEFT')
 
 PAGES = {
     # 'ELN Integration': electronic_lab_notebook,
     # 'Data Management': data_management,
-    'Quality Management System': quality_management_system,
     'Standard Operating Procedures': standard_operating_procedures,
+    'Quality Management System': quality_management_system,
     'Inventory Management': inventory_management,
     # 'Integration and Interoperability': integration_interoperability,
     # 'Reporting and Analytics': reporting_analytics,

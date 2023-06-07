@@ -9,6 +9,7 @@ from uuid import uuid4
 import gspread
 from gspread_dataframe import get_as_dataframe, set_with_dataframe
 import json
+import textwrap
 
 from reportlab.pdfgen import canvas
 from reportlab.lib import colors
@@ -110,47 +111,47 @@ def manage_inventory(inventory_type):
     search_df = df[df.astype(str).apply(lambda x: x.str.contains(search_term, case=False).any(), axis=1)]
     st.dataframe(search_df)
 
-    # add, remove, update = st.tabs(['Add', 'Remove', 'Update'])
-    # with add:
-    #     new_item = pd.DataFrame().from_dict(
-    #         {field['column_name']: None for field in database_structures[inventory_type][1:]}, orient='index').T
-    #     new_item = st.experimental_data_editor(new_item)
-    #     if st.button('Add Item', key=f'{inventory_type}_add'):
-    #         new_item = new_item.to_dict('records')[0]
-    #         new_item['id'] = f'{abvs[inventory_type]}-{str(uuid4())[:6]}'
+    add, remove, update = st.tabs(['Add', 'Remove', 'Update'])
+    with add:
+        new_item = pd.DataFrame().from_dict(
+            {field['column_name']: None for field in database_structures[inventory_type][1:]}, orient='index').T
+        new_item = st.experimental_data_editor(new_item)
+        if st.button('Add Item', key=f'{inventory_type}_add'):
+            new_item = new_item.to_dict('records')[0]
+            new_item['id'] = f'{abvs[inventory_type]}-{str(uuid4())[:6]}'
 
-    #         # Append new SOP to the dataframe
-    #         df = df.append(new_item, ignore_index=True)
+            # Append new SOP to the dataframe
+            df = df.append(new_item, ignore_index=True)
 
-    #         # Save updated dataframe to Google Sheets
-    #         set_with_dataframe(worksheet, df)
+            # Save updated dataframe to Google Sheets
+            set_with_dataframe(worksheet, df)
 
-    #         # Display success message
-    #         new_item_name = new_item['name']
-    #         st.success(f'Successfully added {new_item_name} to {inventory_type}.')
+            # Display success message
+            new_item_name = new_item['name']
+            st.success(f'Successfully added {new_item_name} to {inventory_type}.')
 
-    # with remove:
-    #     remove_id = st.text_input(f'Item ID', key=f'{inventory_type}_remove_id')
-    #     if remove_id:
-    #         st.dataframe(df[df['id'] == remove_id])
-    #         if st.button('Remove Selected Item', key=f'{inventory_type}_remove'):
-    #             df = df[df['id'] != remove_id]
-    #             worksheet.clear()
-    #             worksheet.update([df.columns.values.tolist()] + df.values.tolist())
-    #             # set_with_dataframe(worksheet, df)
-    #             st.success(f'Successfully removed {remove_id} from {inventory_type}.')
+    with remove:
+        remove_id = st.text_input(f'Item ID', key=f'{inventory_type}_remove_id')
+        if remove_id:
+            st.dataframe(df[df['id'] == remove_id])
+            if st.button('Remove Selected Item', key=f'{inventory_type}_remove'):
+                df = df[df['id'] != remove_id]
+                worksheet.clear()
+                worksheet.update([df.columns.values.tolist()] + df.values.tolist())
+                # set_with_dataframe(worksheet, df)
+                st.success(f'Successfully removed {remove_id} from {inventory_type}.')
         
-    # with update:
-    #     update_id = st.text_input(f'Item ID', key=f'{inventory_type}_update_id')
-    #     if update_id:
-    #         update_item = df[df['id'] == update_id]
-    #         update_item = st.experimental_data_editor(update_item, key=f'{inventory_type}_update_item')
-    #         if st.button('Update Selected Item', key=f'{inventory_type}_update'):
-    #             update_item = update_item.to_dict('records')[0]
-    #             df = df[df['id'] != update_id]
-    #             df = df.append(update_item, ignore_index=True)
-    #             set_with_dataframe(worksheet, df)
-    #             st.success(f'Successfully updated {update_id} in {inventory_type}.')
+    with update:
+        update_id = st.text_input(f'Item ID', key=f'{inventory_type}_update_id')
+        if update_id:
+            update_item = df[df['id'] == update_id]
+            update_item = st.experimental_data_editor(update_item, key=f'{inventory_type}_update_item')
+            if st.button('Update Selected Item', key=f'{inventory_type}_update'):
+                update_item = update_item.to_dict('records')[0]
+                df = df[df['id'] != update_id]
+                df = df.append(update_item, ignore_index=True)
+                set_with_dataframe(worksheet, df)
+                st.success(f'Successfully updated {update_id} in {inventory_type}.')
 
 
 def data_management():
@@ -202,6 +203,8 @@ def standard_operating_procedures():
     df = pd.DataFrame(worksheet.get_all_records())
     df.dropna(how='all', inplace=True)
     df = df[[col for col in df.columns if 'Unnamed' not in col]]
+    df.sort_values(by=['id'], inplace=True)
+    df.reset_index(drop=True, inplace=True)
 
     # Filter options
     filter_term = st.text_input(f'Search', key=f'sop_search')
@@ -325,56 +328,57 @@ def standard_operating_procedures():
 
                 # Displaying File
                 st.markdown(pdf_display, unsafe_allow_html=True)
-
                 
-                md_title=f"# {query_dict['title']}"
-                md_purpose=query_dict['purpose']
-                md_scope_covered="\n".join(
+                md_title = f"# {query_dict['title']}"
+                md_purpose = query_dict['purpose']
+                md_scope_covered = "\n".join(
                     [f"- {x}" for x in query_dict['scope_covered']])
-                md_scope_not_covered="\n".join(
+                md_scope_not_covered = "\n".join(
                     [f"- {x}" for x in query_dict['scope_not_covered']])
-                md_applications=query_dict['applications']
-                md_definitions="\n".join(
+                md_applications = query_dict['applications']
+                md_definitions = "\n".join(
                     [f"- **{k}**: {v}" for k, v in query_dict['definitions'].items()])
-                md_responsibilities="\n".join(
+                md_responsibilities = "\n".join(
                     [f"- **{k}**: {v}" for k, v in query_dict['responsibilities'].items()])
-                md_procedure=""
+                md_procedure = ""
                 for k, v in query_dict['procedure'].items():
                     md_procedure += f"\n### {k}\n"
                     for i, x in enumerate(v):
                         md_procedure += f"- {x}\n"
-                md_ppe="\n".join(
+                md_ppe = "\n".join(
                     [f"- **{k}**: {v}" for k, v in query_dict['ppe'].items()])
-                md_hazards_and_mitigation="\n".join(
+                md_hazards_and_mitigation = "\n".join(
                     [f"- **{k}**: {v}" for k, v in query_dict['hazards_and_mitigation'].items()])
-                md_emergency_procedures="\n".join(
+                md_emergency_procedures = "\n".join(
                     [f"- **{k}**: {v}" for k, v in query_dict['emergency_procedures'].items()])
 
-                st.markdown(f"""
-{md_title}
-## Purpose
-{md_purpose}
-## Scope
-### Covered
-{md_scope_covered}
-### Not covered
-{md_scope_not_covered}
-## Applications
-{md_applications}
-## Definitions
-{md_definitions}
-## Responsibilities
-{md_responsibilities}
-## Procedure
-{md_procedure}
-## Health and Safety
-### PPE
-{md_ppe}
-### Hazards and mitigation
-{md_hazards_and_mitigation}
-### Emergency procedures
-{md_emergency_procedures}
-""", unsafe_allow_html=True)
+                md = "\n".join([
+                    md_title,
+                    "## Purpose",
+                    md_purpose,
+                    "## Scope",
+                    "### Covered",
+                    md_scope_covered,
+                    "### Not covered",
+                    md_scope_not_covered,
+                    "## Applications",
+                    md_applications,
+                    "## Definitions",
+                    md_definitions,
+                    "## Responsibilities",
+                    md_responsibilities,
+                    "## Procedure",
+                    md_procedure,
+                    "## Health and Safety",
+                    "### PPE",
+                    md_ppe,
+                    "### Hazards and mitigation",
+                    md_hazards_and_mitigation,
+                    "### Emergency procedures",
+                    md_emergency_procedures,
+                ])
+                print(md)
+                st.markdown(md, unsafe_allow_html=True)
 
     # with create:
 

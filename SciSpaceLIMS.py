@@ -324,7 +324,7 @@ def standard_operating_procedures():
                 # Build the PDF document
                 doc.build(elements, canvasmaker=NumberedCanvas)
                 pdf_bytes = buffer.getbuffer().tobytes()
-                pdf_base64 = base64.b64encode(pdf_bytes).decode("utf-8")
+                # pdf_base64 = base64.b64encode(pdf_bytes).decode("utf-8")
 
                 # Use fitz to convert PDF to PNG
                 pdf_document = fitz.open(stream=pdf_bytes, filetype="pdf")
@@ -334,9 +334,10 @@ def standard_operating_procedures():
                     png = pix.tobytes("png")
                     pdf_pngs.append(png)
 
-                with st.expander("View PDF", expanded=True):
+                with st.expander("PDF", expanded=True):
+                    st.download_button("Download PDF", data=pdf_bytes, file_name=f"{query_dict['id']} - {query_dict['title']}.pdf", use_container_width=True)
                     for i, png in enumerate(pdf_pngs):
-                        st.image(png, caption=f"Page {i+1}", use_column_width=True)
+                        st.image(png, caption=f"Page {i+1}")
 
                 
                 # # Embedding PDF in HTML

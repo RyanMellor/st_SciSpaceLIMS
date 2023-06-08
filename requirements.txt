@@ -2,3 +2,4 @@ streamlit == 1.22.0
 gspread == 5.9.0
 gspread_dataframe == 3.3.0
 reportlab == 3.6.12
+PyMuPDF==1.22.3

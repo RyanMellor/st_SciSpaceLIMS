@@ -19,6 +19,9 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Image, PageTemplate
 from reportlab.platypus.flowables import HRFlowable, Spacer
 from reportlab.lib.enums import TA_JUSTIFY, TA_LEFT, TA_CENTER, TA_RIGHT
 
+# from pdf2image import convert_from_bytes
+import fitz
+
 # from pydantic import BaseModel, Field, validator
 # from typing import List, Dict
 
@@ -323,62 +326,75 @@ def standard_operating_procedures():
                 pdf_bytes = buffer.getbuffer().tobytes()
                 pdf_base64 = base64.b64encode(pdf_bytes).decode("utf-8")
 
-                # Embedding PDF in HTML
-                pdf_display = f'<iframe src="data:application/pdf;base64,{pdf_base64}" width="600" height="900" type="application/pdf"></iframe>'
+                # Use fitz to convert PDF to PNG
+                pdf_document = fitz.open(stream=pdf_bytes, filetype="pdf")
+                pdf_pngs = []
+                for page in pdf_document:
+                    pix = page.get_pixmap()
+                    png = pix.tobytes("png")
+                    pdf_pngs.append(png)
 
-                # Displaying File
-                st.markdown(pdf_display, unsafe_allow_html=True)
+                with st.expander("View PDF", expanded=True):
+                    for i, png in enumerate(pdf_pngs):
+                        st.image(png, caption=f"Page {i+1}", use_column_width=True)
+
                 
-                md_title = f"# {query_dict['title']}"
-                md_purpose = query_dict['purpose']
-                md_scope_covered = "\n".join(
-                    [f"- {x}" for x in query_dict['scope_covered']])
-                md_scope_not_covered = "\n".join(
-                    [f"- {x}" for x in query_dict['scope_not_covered']])
-                md_applications = query_dict['applications']
-                md_definitions = "\n".join(
-                    [f"- **{k}**: {v}" for k, v in query_dict['definitions'].items()])
-                md_responsibilities = "\n".join(
-                    [f"- **{k}**: {v}" for k, v in query_dict['responsibilities'].items()])
-                md_procedure = ""
-                for k, v in query_dict['procedure'].items():
-                    md_procedure += f"\n### {k}\n"
-                    for i, x in enumerate(v):
-                        md_procedure += f"- {x}\n"
-                md_ppe = "\n".join(
-                    [f"- **{k}**: {v}" for k, v in query_dict['ppe'].items()])
-                md_hazards_and_mitigation = "\n".join(
-                    [f"- **{k}**: {v}" for k, v in query_dict['hazards_and_mitigation'].items()])
-                md_emergency_procedures = "\n".join(
-                    [f"- **{k}**: {v}" for k, v in query_dict['emergency_procedures'].items()])
+                # # Embedding PDF in HTML
+                # pdf_display = f'<iframe src="data:application/pdf;base64,{pdf_base64}" width="600" height="900" type="application/pdf"></iframe>'
 
-                md = "\n".join([
-                    md_title,
-                    "## Purpose",
-                    md_purpose,
-                    "## Scope",
-                    "### Covered",
-                    md_scope_covered,
-                    "### Not covered",
-                    md_scope_not_covered,
-                    "## Applications",
-                    md_applications,
-                    "## Definitions",
-                    md_definitions,
-                    "## Responsibilities",
-                    md_responsibilities,
-                    "## Procedure",
-                    md_procedure,
-                    "## Health and Safety",
-                    "### PPE",
-                    md_ppe,
-                    "### Hazards and mitigation",
-                    md_hazards_and_mitigation,
-                    "### Emergency procedures",
-                    md_emergency_procedures,
-                ])
-                print(md)
-                st.markdown(md, unsafe_allow_html=True)
+                # # Displaying File
+                # st.markdown(pdf_display, unsafe_allow_html=True)
+                
+                # md_title = f"# {query_dict['title']}"
+                # md_purpose = query_dict['purpose']
+                # md_scope_covered = "\n".join(
+                #     [f"- {x}" for x in query_dict['scope_covered']])
+                # md_scope_not_covered = "\n".join(
+                #     [f"- {x}" for x in query_dict['scope_not_covered']])
+                # md_applications = query_dict['applications']
+                # md_definitions = "\n".join(
+                #     [f"- **{k}**: {v}" for k, v in query_dict['definitions'].items()])
+                # md_responsibilities = "\n".join(
+                #     [f"- **{k}**: {v}" for k, v in query_dict['responsibilities'].items()])
+                # md_procedure = ""
+                # for k, v in query_dict['procedure'].items():
+                #     md_procedure += f"\n### {k}\n"
+                #     for i, x in enumerate(v):
+                #         md_procedure += f"- {x}\n"
+                # md_ppe = "\n".join(
+                #     [f"- **{k}**: {v}" for k, v in query_dict['ppe'].items()])
+                # md_hazards_and_mitigation = "\n".join(
+                #     [f"- **{k}**: {v}" for k, v in query_dict['hazards_and_mitigation'].items()])
+                # md_emergency_procedures = "\n".join(
+                #     [f"- **{k}**: {v}" for k, v in query_dict['emergency_procedures'].items()])
+
+                # md = "\n".join([
+                #     md_title,
+                #     "## Purpose",
+                #     md_purpose,
+                #     "## Scope",
+                #     "### Covered",
+                #     md_scope_covered,
+                #     "### Not covered",
+                #     md_scope_not_covered,
+                #     "## Applications",
+                #     md_applications,
+                #     "## Definitions",
+                #     md_definitions,
+                #     "## Responsibilities",
+                #     md_responsibilities,
+                #     "## Procedure",
+                #     md_procedure,
+                #     "## Health and Safety",
+                #     "### PPE",
+                #     md_ppe,
+                #     "### Hazards and mitigation",
+                #     md_hazards_and_mitigation,
+                #     "### Emergency procedures",
+                #     md_emergency_procedures,
+                # ])
+                # print(md)
+                # st.markdown(md, unsafe_allow_html=True)
 
     # with create:
 

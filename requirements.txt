@@ -1,5 +1,5 @@
-streamlit == 1.22.0
+streamlit == 1.23.1
 gspread == 5.9.0
-gspread_dataframe == 3.3.0
 reportlab == 3.6.12
 PyMuPDF==1.22.3
+st-pages==0.4.1
